@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "Client": {
+      "title": "Client",
+      "description": "A client that receives invoices",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Client name" },
+        "email": { "type": "string", "format": "email", "description": "Client email" },
+        "address": { "type": "string", "description": "Client address" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "ownerId": { "type": "string", "description": "UID of the user who owns this client" }
+      },
+      "required": ["name", "email", "ownerId"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "An invoice sent to a client",
+      "type": "object",
+      "properties": {
+        "invoiceNumber": { "type": "string", "description": "Unique invoice number" },
+        "clientId": { "type": "string", "description": "ID of the client" },
+        "clientName": { "type": "string", "description": "Denormalized client name" },
+        "date": { "type": "string", "format": "date", "description": "Invoice date" },
+        "dueDate": { "type": "string", "format": "date", "description": "Payment due date" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unitPrice": { "type": "number" }
+            }
+          }
+        },
+        "subtotal": { "type": "number" },
+        "taxRate": { "type": "number" },
+        "taxAmount": { "type": "number" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "paid", "overdue"] },
+        "ownerId": { "type": "string", "description": "UID of the user who owns this invoice" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["invoiceNumber", "clientId", "date", "items", "total", "status", "ownerId"]
+    }
+  },
+  "firestore": {
+    "clients": {
+      "schema": "Client",
+      "description": "Collection of clients"
+    },
+    "invoices": {
+      "schema": "Invoice",
+      "description": "Collection of invoices"
+    }
+  }
+}

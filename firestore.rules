@@ -1,0 +1,109 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: clients
+// Fields:
+//   - name: string (required)
+//   - email: string (required, email format)
+//   - address: string (optional)
+//   - ownerId: string (required, immutable)
+//   - createdAt: timestamp (required)
+//
+// Collection: invoices
+// Fields:
+//   - invoiceNumber: string (required)
+//   - clientId: string (required)
+//   - clientName: string (required)
+//   - date: string (required, ISO 8601)
+//   - dueDate: string (optional, ISO 8601)
+//   - items: list (required, objects with description, quantity, unitPrice)
+//   - subtotal: number (required)
+//   - taxRate: number (required)
+//   - taxAmount: number (required)
+//   - total: number (required)
+//   - status: string (required, enum: ['pending', 'paid', 'overdue'])
+//   - ownerId: string (required, immutable)
+//   - createdAt: timestamp (required)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.ownerId;
+    }
+
+    function ownerIdUnchanged() {
+      return !('ownerId' in request.resource.data) || request.resource.data.ownerId == request.auth.uid;
+    }
+
+    function ownerIdNotModified() {
+      return !('ownerId' in request.resource.data) || request.resource.data.ownerId == resource.data.ownerId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}.*");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidClient(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             (!('address' in data) || (data.address is string && data.address.size() < 500));
+    }
+
+    function isValidInvoice(data) {
+      return data.invoiceNumber is string && data.invoiceNumber.size() > 0 &&
+             data.clientId is string &&
+             data.clientName is string &&
+             isValidDateString(data.date) &&
+             data.items is list &&
+             data.total is number && data.total >= 0 &&
+             data.status in ['pending', 'paid', 'overdue'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /clients/{clientId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidClient(request.resource.data) && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isDocOwner() && isValidClient(request.resource.data) && ownerIdNotModified();
+      allow delete: if isDocOwner();
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidInvoice(request.resource.data) && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isDocOwner() && isValidInvoice(request.resource.data) && ownerIdNotModified();
+      allow delete: if isDocOwner();
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+  }
+}

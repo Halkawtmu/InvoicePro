@@ -1,0 +1,5 @@
+{
+  "name": "InvoicePro",
+  "description": "A professional invoice management application with client tracking, automated calculations, and PDF export.",
+  "requestFramePermissions": []
+}
